@@ -11,13 +11,7 @@ from ..compat import is_authenticated
 
 register = template.Library()
 
-
-@register.simple_tag(takes_context=True)
-def ratings(context, item, icon_height=app_settings.STAR_RATINGS_STAR_HEIGHT, icon_width=app_settings.STAR_RATINGS_STAR_WIDTH, read_only=False, template_name=None):
-    request = context.get('request')
-
-    if request is None:
-        raise Exception('Make sure you have "django.core.context_processors.request" in "TEMPLATE_CONTEXT_PROCESSORS"')
+def ratings_helper(request, item, icon_height=app_settings.STAR_RATINGS_STAR_HEIGHT, icon_width=app_settings.STAR_RATINGS_STAR_WIDTH, read_only=False):
 
     rating = get_star_ratings_rating_model().objects.for_instance(item)
     user = is_authenticated(request.user) and request.user or None
@@ -34,10 +28,7 @@ def ratings(context, item, icon_height=app_settings.STAR_RATINGS_STAR_HEIGHT, ic
 
     stars = [i for i in range(1, app_settings.STAR_RATINGS_RANGE + 1)]
 
-    # We get the template to load here rather than using inclusion_tag so that the
-    # template name can be passed as a template parameter
-    template_name = template_name or context.get('star_ratings_template_name') or 'star_ratings/widget.html'
-    return loader.get_template(template_name).render({
+    response_dict={
         'rating': rating,
         'request': request,
         'user': request.user,
@@ -54,4 +45,17 @@ def ratings(context, item, icon_height=app_settings.STAR_RATINGS_STAR_HEIGHT, ic
         'anonymous_ratings': app_settings.STAR_RATINGS_ANONYMOUS,
         'read_only': read_only,
         'editable': not read_only and (is_authenticated(request.user) or app_settings.STAR_RATINGS_ANONYMOUS)
-    })
+    }
+    return response_dict
+
+@register.simple_tag(takes_context=True)
+def ratings(context, item, icon_height=app_settings.STAR_RATINGS_STAR_HEIGHT, icon_width=app_settings.STAR_RATINGS_STAR_WIDTH, read_only=False, template_name=None):
+    request = context.get('request')
+
+    if request is None:
+        raise Exception('Make sure you have "django.core.context_processors.request" in "TEMPLATE_CONTEXT_PROCESSORS"')
+
+    # We get the template to load here rather than using inclusion_tag so that the
+    # template name can be passed as a template parameter
+    template_name = template_name or context.get('star_ratings_template_name') or 'star_ratings/widget.html'
+    return loader.get_template(template_name).render(ratings_helper(request,item,icon_height,icon_width,read_only))
